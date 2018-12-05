@@ -1,0 +1,163 @@
+<mat-toolbar color="primary">
+  <mat-toolbar-row>
+    <h1>{{ title }}</h1>
+    <span class="spacer"></span>
+    <!-- <mat-icon class="example-icon">verified_user</mat-icon> -->
+
+    <nav mat-tab-nav-bar backgroundColor="primary">
+      <a mat-tab-link *ngFor="let link of links"
+      (click)="activeLink = link"
+      [active]="activeLink === link">{{ link }}</a>
+    </nav>
+
+  </mat-toolbar-row>
+</mat-toolbar>
+
+<!-- consulta frete -->
+<mat-vertical-stepper *ngIf="activeLink === links[0]" [linear]="true" #stepper (selectionChange)="checkStep($event)">
+
+  <!-- region -->
+  <mat-step [stepControl]="regionFormGroup">
+
+    <form [formGroup]="regionFormGroup">
+      <ng-template matStepLabel>Selecione a origem: <strong>{{ regionFormGroup.get('zone').value?.name }}</strong></ng-template>
+
+      <mat-radio-group formControlName="zone" *ngIf="!loadingCompany">
+        <mat-radio-button *ngFor="let option of regions" [value]="option">
+          {{ option.name }}
+        </mat-radio-button>
+      </mat-radio-group>
+
+      <mat-progress-bar *ngIf="loadingCompany" mode="indeterminate"></mat-progress-bar>
+
+      <div class="btControl">
+        <button color="primary"  mat-raised-button  matStepperNext [disabled]="regionFormGroup.invalid || loadingRegion">Confirmar</button>
+      </div>
+    </form>
+  </mat-step>
+
+  <!-- destiny -->
+  <mat-step [stepControl]="destinyFormGroup">
+
+    <form [formGroup]="destinyFormGroup">
+      <ng-template matStepLabel>Informe o CEP de destino: <strong>{{ destinyFormGroup.get('zipCode').value }}</strong></ng-template>
+      <mat-form-field>
+        <input matInput placeholder="CEP" formControlName="zipCode" required (keyup)="destinyFormGroup.valid && getRegions(destinyFormGroup)">
+        <mat-hint align="start">*Use <span (click)='setZipCode($event)'>08270330</span>, <span (click)='setZipCode($event)'>03513000</span> ou <span (click)='setZipCode($event)'>01412000</span></mat-hint>
+
+        <button color="primary"  mat-button  *ngIf="destinyFormGroup.get('zipCode').value && !loadingRegion" matSuffix mat-icon-button aria-label="Clear" (click)="destinyFormGroup.get('zipCode').setValue('')">
+          <mat-icon>close</mat-icon>
+        </button>
+        <mat-spinner matSuffix [diameter]="15" *ngIf="loadingRegion"></mat-spinner>
+
+      </mat-form-field>
+
+      <div class="btControl">
+        <button mat-raised-button matStepperPrevious>Retornar</button>
+        <button color="primary"  mat-raised-button  matStepperNext [disabled]="destinyFormGroup.invalid || loadingRegion">Confirmar</button>
+      </div>
+    </form>
+  </mat-step>
+
+  <!-- company -->
+  <mat-step [stepControl]="companyFormGroup">
+    <form [formGroup]="companyFormGroup">
+      <ng-template matStepLabel>Confirme a transportadora: <strong>{{ selectedShippingCompany?.name }}</strong></ng-template>
+
+      <mat-radio-group formControlName="shippingCompany" *ngIf="!loadingCompany" (change)="selectedShippingCompany=companyFormGroup.get('shippingCompany').value">
+        <mat-radio-button *ngFor="let option of shippingCompannyList" [value]="option" [checked]="selectedShippingCompany === option">
+          {{ option.name }}
+        </mat-radio-button>
+      </mat-radio-group>
+
+      <mat-progress-bar *ngIf="loadingCompany" mode="indeterminate"></mat-progress-bar>
+
+      <div class="btControl">
+        <button mat-raised-button matStepperPrevious>Retornar</button>
+        <button color="primary" mat-raised-button  matStepperNext [disabled]="companyFormGroup.invalid || loadingCompany">Avançar</button>
+      </div>
+    </form>
+  </mat-step>
+
+  <!-- modality -->
+  <mat-step [stepControl]="modalityFormGroup">
+    <form [formGroup]="modalityFormGroup">
+      <ng-template matStepLabel>Modalidade de envio: <strong>{{ modalityFormGroup.get('shippingModality').value ? modalityFormGroup.get('shippingModality').value?.shippingModality?.name + ' (R$ ' + modalityFormGroup.get('shippingModality').value?.cost + ')' : '' }}</strong></ng-template>
+
+      <mat-radio-group formControlName="shippingModality" *ngIf="!loadingModality && fares.length > 0">
+        <mat-radio-button *ngFor="let option of fares" [value]="option">
+          <mat-card>
+              {{ option.shippingModality.name }}<br>
+              Frete: R$ {{ option.cost | number }}<br>
+              Entrega: {{ option.time }} dias úteis.<br>
+          </mat-card>
+        </mat-radio-button>
+      </mat-radio-group>
+
+      <div *ngIf="!loading && fares.length === 0">
+          <mat-icon>sentiment_dissatisfied</mat-icon> Serviço indisponível para essa localidade.
+      </div>
+
+      <mat-progress-bar *ngIf="loadingModality" mode="indeterminate"></mat-progress-bar>
+
+      <div class="btControl">
+        <button mat-raised-button matStepperPrevious>Retornar</button>
+        <button color="primary"  mat-raised-button  matStepperNext [disabled]="modalityFormGroup.invalid || loadingModality">Avançar</button>
+      </div>
+    </form>
+  </mat-step>
+
+  <!-- done -->
+  <mat-step>
+    <div >
+      <ng-template matStepLabel>Concluído</ng-template>
+      Parabéns pela compra.
+      <div class="btControl">
+        <button mat-raised-button (click)="stepper.reset()">Nova consulta</button>
+      </div>
+    </div>
+  </mat-step>
+
+</mat-vertical-stepper>
+
+<!-- cadastro -->
+<mat-accordion *ngIf="activeLink === links[1]">
+  <mat-expansion-panel>
+    <mat-expansion-panel-header>
+      <mat-panel-title>
+        <mat-icon>local_shipping</mat-icon> Transportadora
+      </mat-panel-title>
+    </mat-expansion-panel-header>
+
+    <mat-form-field>
+      <input matInput placeholder="Nome">
+    </mat-form-field>
+
+    <mat-form-field>
+      <input matInput placeholder="Modalidade">
+    </mat-form-field>
+
+    <button color="primary" mat-raised-button>Cadastrar</button>
+
+  </mat-expansion-panel>
+
+  <mat-expansion-panel (opened)="panelOpenState = true"
+                        (closed)="panelOpenState = false">
+    <mat-expansion-panel-header>
+      <mat-panel-title>
+        <mat-icon>map</mat-icon> Região
+      </mat-panel-title>
+    </mat-expansion-panel-header>
+
+    <mat-form-field>
+      <input matInput placeholder="Nome">
+    </mat-form-field>
+
+    <mat-form-field>
+      <input matInput placeholder="CEP">
+    </mat-form-field>
+
+    <button color="primary" mat-raised-button>Cadastrar</button>
+
+  </mat-expansion-panel>
+</mat-accordion>
